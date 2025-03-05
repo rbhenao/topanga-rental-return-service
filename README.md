@@ -1,5 +1,5 @@
 # **Topanga Rental Return Service**
-This service handles rental return events for **ReusePass**.
+This service handles rental return events for **ReusePass**, supporting sustainability through reusable packaging.
 
 ## High-Level Overview
 - The service takes a json payload and returns a json payload
@@ -12,8 +12,6 @@ This service handles rental return events for **ReusePass**.
 - **Strict JSON Schema:** The service ensure consistent response structure to be easily used by downstream services
 - **Modular design:** logic for parsing, processing and responding in separate modules
 - **Dependency Management:** use pip and venv to ensure consistent environment
-
-
 
 ---
 
@@ -49,7 +47,7 @@ Some side effects that can be triggered and implemented via SNS and SQS...
 - SNS notifications to users once a rental is completed
 - Enqueue our RentalReturnResponse object to an SQS queue
 - We can have a success queue and a failure queue
-- microservices process the queues to take actions from there (user status update, reward system updates, alerting on failures)
+- Microservices process the queues to take actions from there (user status update, reward system updates, alerting on failures)
 ---
 
 ## TODOs For Production
@@ -59,7 +57,9 @@ Some of the changes needed to make the service production ready...
 - More detailed unit tests (not just testing happy paths)
 - Add authentication and authorization checking
 - Add retries for transient database issues
+- Add CI/CD pipeline with GitHub Actions
 - Make adjustments to run smoothly on AWS Lambda in cloud environment
+- Event deduplication strategies with idempotency checks in database
 - Add detailed logging and monitoring
 ---
 
