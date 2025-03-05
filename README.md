@@ -1,6 +1,72 @@
 # **Topanga Rental Return Service**
 This service handles rental return events for **ReusePass**.
 
+## High-Level Overview
+- The service takes a json payload and returns a json payload
+- The input payload is parsed as a **ReturnEvent** in **`return_event_received.py`**
+- **ReturnEvent** is then processed in **`process_rental_return.py`**
+- Finally a **RentalReturnResponse** output payload is created and returned in **`return_event_response.py`**
+
+## Engineering Choices
+- **Event-Driven:** The service processes return events asychronously in order to not block other microservices
+- **Strict JSON Schema:** The service ensure consistent response structure to be easily used by downstream services
+- **Modular design:** logic for parsing, processing and responding in separate modules
+- **Dependency Management:** use pip and venv to ensure consistent environment
+
+
+
+---
+
+**Output**
+Because this service is intended to be used by downstream services, it is important to have a predictable structured output.
+We model this with a RentalReturnResponse Object:
+
+**SUCCESS**
+```json
+{
+    "status": "SUCCESS",
+    "message": "Rental successfully completed",
+    "rental_id": "b5bc2838-b0ba-4fb8-94fc-21da32f41747",
+    "rental_returned_at": "2025-02-10T11:00:00+00:00",
+    "rental_status": "COMPLETED",
+    "error": null
+}
+```
+
+**FAILURE**
+```json
+{
+    "status": "FAILED",
+    "message": "No active rentals found for user tpg_u0001",
+    "rental_id": null,
+    "rental_returned_at": null,
+    "rental_status": null,
+    "error": "No eligible rental found"
+}
+```
+## Handling Downstream Side-Effects
+Some side effects that can be triggered and implemented via SNS and SQS...
+- SNS notifications to users once a rental is completed
+- Enqueue our RentalReturnResponse object to an SQS queue
+- We can have a success queue and a failure queue
+- microservices process the queues to take actions from there (user status update, reward system updates, alerting on failures)
+---
+
+## TODOs For Production
+Some of the changes needed to make the service production ready...
+- Add more robust error checking at all stages of return event processing
+- Add specific error messages to the response for each type of error e.g. invalid asset, invalid user, rental expired.
+- More detailed unit tests (not just testing happy paths)
+- Add authentication and authorization checking
+- Add retries for transient database issues
+- Make adjustments to run smoothly on AWS Lambda in cloud environment
+- Add detailed logging and monitoring
+---
+
+### Cloud Architecture Diagram 
+
+#### *For a Cloud Architecture Diagram see `./Documentation/architecture.png`*
+
 ---
 
 ## **Setup Instructions**
@@ -102,7 +168,6 @@ Final Rental Completion Response:
 cd tests
 pytest -v
 ```
-
 ---
 
 ## **Notes**
