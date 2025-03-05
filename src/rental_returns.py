@@ -4,6 +4,7 @@ import sys
 import os
 
 from rental_return_events.process_rental_return import process_rental_return
+from topanga_queries.bootstrap.db import initialize_challenge_db
 
 # Global flag to enable verbose logging
 global VERBOSE_MODE
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     VERBOSE_MODE = "--verbose" in sys.argv
 
     json_file = sys.argv[1] # read the json return event file
-
+    
     try:
         # Read JSON payload and complete the return event 
         payload = load_json_file(json_file)
