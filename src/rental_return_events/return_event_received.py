@@ -11,7 +11,6 @@ class ReturnEvent:
 
 def decode_qr(encoded_str: str) -> str:
     """Decodes base64 encoded QR
-    
     Args:
         encoded_str (str): Base64 encoded string
 
@@ -28,7 +27,6 @@ def decode_qr(encoded_str: str) -> str:
 
 def convert_timestamp(timestamp: str) -> datetime:
     """Converts the timestamp to datetime object.
-
     Args:
         timestamp (str): ISO formatted timestamp 
     
@@ -45,7 +43,6 @@ def convert_timestamp(timestamp: str) -> datetime:
 
 def parse_return_event(event: dict) -> ReturnEvent:
     """Parses return event dict and returns a ReturnEvent object.
-
     Args:
         event (dict): JSON event data
     
