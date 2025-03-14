@@ -4,8 +4,6 @@ from dataclasses import dataclass, asdict
 
 from topanga_queries.rentals import Rental
 
-from .return_event_utils import print_rental
-
 @dataclass
 class RentalReturnResponse:
     status: str  # "SUCCESS" or "FAILED"
@@ -19,17 +17,15 @@ class RentalReturnResponse:
         """Converts the response object to a dictionary for JSON serialization"""
         return asdict(self)
 
-def create_success_response(rental: Rental, verbose_mode: bool) -> dict:
+def create_success_response(rental: Rental) -> dict:
     """Creates a success response after rental completion.
+    
     Args:
         rental (Rental): The rental object
-        verbose_mode (bool): Flag to enable verbose logging 
     
     Returns:
         dict: The success response dictionary
     """
-    print_rental(verbose_mode, rental, "UPDATED RENTAL:")
-    
     return RentalReturnResponse(
         status="SUCCESS",
         message="Rental successfully completed",
@@ -40,6 +36,7 @@ def create_success_response(rental: Rental, verbose_mode: bool) -> dict:
 
 def create_failure_response(message: str) -> dict:
     """Creates a failure response dictionary
+    
     Args:
         message (str): The error message
 

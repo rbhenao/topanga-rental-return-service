@@ -3,10 +3,9 @@ import json
 from datetime import datetime, timezone
 
 from topanga_queries.rentals import Rental
-
-from rental_return_events.return_event_received import *
-from rental_return_events.return_event_response import *
-from rental_return_events.process_rental_return import *
+from rental_return_events.handler import ReturnEvent, decode_qr, convert_timestamp, parse_return_event
+from rental_return_events.response import create_success_response, create_failure_response
+from rental_return_events.processor import rental_is_of_asset_type, rental_is_non_expired, fetch_valid_asset, active_eligible_rentals, find_oldest_rental_from, complete_rental_return, process_rental_return
 
 # =========================
 # return_event_received.py
@@ -73,8 +72,6 @@ def test_create_success_response():
         returned_at='2025-02-10T11:00:00+00:00'
     )
 
-    verbose_mode = False
-
     expected = {
         "status": "SUCCESS",
         "message": "Rental successfully completed",
@@ -84,7 +81,7 @@ def test_create_success_response():
         "error": None
     }
 
-    result = create_success_response(rental, verbose_mode)
+    result = create_success_response(rental)
 
     assert result == expected
 

@@ -1,26 +1,22 @@
+from env_setup import DB_TEST_PATH, EVENTS_DIR
+
 import pytest
 import os
 import sys
-import shutil
 import json
-import sqlite3
+from pathlib import Path
 
+# Define paths and set up environment before importing topanga and rental_return_events packages
+DB_TEST_PATH = os.path.join(os.path.dirname(__file__), "challenge.test.db")  # Inside `tests/`
+os.environ["TOPANGA_DB_PATH"] = DB_TEST_PATH
+
+from rental_return_events.logger import configure_logging
 from topanga_queries.rentals import Rental
 from topanga_queries import reset_db_connection
 from topanga_queries.bootstrap.db import initialize_challenge_db
 
-# Get the absolute path to the project root (one level up from `tests/`)
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-# Define common paths
-SRC_PATH = os.path.join(PROJECT_ROOT, "src")
-DB_TEST_PATH = os.path.join(os.path.dirname(__file__), "challenge.db")  # Inside `tests/`
-EVENTS_DIR = os.path.join(SRC_PATH, "example_events")
-
-# Add `src/` to sys.path for all tests.
-if SRC_PATH not in sys.path:
-    sys.path.insert(0, SRC_PATH)
-    print(f"Added {SRC_PATH} to sys.path")
+# Suppress debug logging during tests
+configure_logging(verbose=False)
 
 # Initialize the test database
 initialize_challenge_db()

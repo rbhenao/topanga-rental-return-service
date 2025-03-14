@@ -1,13 +1,13 @@
 import json
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 from topanga_queries.rentals import Rental, complete_rental, get_rental, list_rentals_for_user
 from topanga_queries.assets import Asset, get_asset
 
-from .return_event_utils import *
-from .return_event_received import parse_return_event, ReturnEvent
-from .return_event_response import create_failure_response, create_success_response
+from rental_return_events.handler import parse_return_event, ReturnEvent
+from rental_return_events.response import create_failure_response, create_success_response
+from rental_return_events.logger import log_function_calls
 
 # ====================================================
 # Rental Eligibility Helpers
@@ -48,9 +48,11 @@ def fetch_valid_asset(asset_id: str) -> Optional[Asset]:
     """
     try:
         return get_asset(asset_id)
-    except ValueError:
-        debug_print("Asset not found:", asset_id)
-        return None
+    
+    except (ValueError, TypeError) as e:
+        print(f"Asset not found: {asset_id} | Error: {str(e)}")
+        #logger.warning("Asset not found: %s | Error: %s", asset_id, str(e))
+        raise LookupError(f"Asset not found: {asset_id}")
 
 # ====================================================
 # Find Eligible Rental
@@ -65,18 +67,21 @@ def active_eligible_rentals(return_event: ReturnEvent) -> List[Rental]:
     Returns:
         List[Rental]: List of eligible rentals
     """
-    rentals = list_rentals_for_user(return_event.user_id)
+    try:
+        rentals = list_rentals_for_user(return_event.user_id)
+        asset = fetch_valid_asset(return_event.asset_id)    
 
-    asset = fetch_valid_asset(return_event.asset_id)    
-    if not asset:
+        return [
+            rental for rental in rentals
+            if rental.status == "IN_PROGRESS"
+            and rental_is_of_asset_type(asset.asset_type, rental)
+            and rental_is_non_expired(rental, return_event.timestamp)
+        ]
+
+    except LookupError:
         return []
 
-    return [ rental for rental in rentals
-        if rental.status == "IN_PROGRESS"
-        and rental_is_of_asset_type(asset.asset_type, rental)
-        and rental_is_non_expired(rental, return_event.timestamp)
-    ]
-
+@log_function_calls
 def find_oldest_rental_from(rentals: List[Rental]) -> Optional[Rental]:
     """Finds the oldest rental
     
@@ -86,24 +91,25 @@ def find_oldest_rental_from(rentals: List[Rental]) -> Optional[Rental]:
     Returns:
         Optional[Rental]: Oldest rental if found, None otherwise
     """
-    if not rentals:
+    try:
+        return min(rentals, key=lambda r: datetime.fromisoformat(r.created_at))
+    except ValueError:  # min() raises ValueError on an empty list
         return None
-
-    return min(rentals, key=lambda r: datetime.fromisoformat(r.created_at))
 
 # ====================================================
 # Process Eligible Rental
 # ====================================================
-
-def finalize_rental_return(rental: Rental, return_event: ReturnEvent, verbose_mode: bool = False) -> None:
+@log_function_calls
+def finalize_rental_return(rental: Rental, return_event: ReturnEvent) -> Rental:
     """Finalizes the rental return
-    
+
     Args:
         rental (Rental): Rental object
         return_event (ReturnEvent): Return event object
+    
+    Returns:
+        Rental: Updated rental object
     """
-    print_rental(verbose_mode, rental, "ELIGIBLE RENTAL FOUND:")
-
     complete_rental(
         id=rental.id, 
         status="COMPLETED", 
@@ -111,7 +117,9 @@ def finalize_rental_return(rental: Rental, return_event: ReturnEvent, verbose_mo
         returned_at_location_id=return_event.location_id
     )
 
-def complete_rental_return(return_event: ReturnEvent, verbose_mode: bool = False) -> dict:
+    return get_rental(rental.id)
+
+def complete_rental_return(return_event: ReturnEvent) -> dict:
     """Completes the oldest eligible rental for the user
     
     Args:
@@ -125,11 +133,9 @@ def complete_rental_return(return_event: ReturnEvent, verbose_mode: bool = False
     if not rental:
         return create_failure_response(f"No active rentals found for user {return_event.user_id}")    
 
-    finalize_rental_return(rental, return_event, verbose_mode)
+    return create_success_response(finalize_rental_return(rental, return_event))
 
-    return create_success_response(get_rental(rental.id), verbose_mode)
-
-def process_rental_return(event: dict, verbose_mode: bool = False) -> dict:
+def process_rental_return(event: dict) -> dict:
     """Processe rental return events
     
     Args:
@@ -141,16 +147,12 @@ def process_rental_return(event: dict, verbose_mode: bool = False) -> dict:
     Returns:
         dict: Rental return response
     """
-    debug_print(verbose_mode, "\nReceived return event json:", json.dumps(event, indent=4))
-
-    try: 
+    try:
         return_event = parse_return_event(event)
-        print_return_event(verbose_mode, return_event)
-        
-        result = complete_rental_return(return_event, verbose_mode)
-        debug_print(verbose_mode, "\nRental Completion Response:", json.dumps(result, indent=4))
-        return result
+        return complete_rental_return(return_event)
     
     except ValueError as e:
-        debug_print(verbose_mode, "Error processing return event: ", str(e))
-        return create_failure_response("Error processing return event")
+        return create_failure_response(f"Invalid return event: str(e)")
+    
+    except Exception as e:
+        return create_failure_response(f"Error processing rental return: {str(e)}")

@@ -1,6 +1,9 @@
 import base64
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+import binascii
+from dataclasses import dataclass
+from datetime import datetime
+
+from rental_return_events.logger import log_function_calls
 
 @dataclass
 class ReturnEvent:
@@ -23,7 +26,7 @@ def decode_qr(encoded_str: str) -> str:
     """
     try:
         return base64.b64decode(encoded_str).decode("utf-8")
-    except Exception as e:
+    except (UnicodeDecodeError, binascii.Error) as e:
         raise ValueError(f"Could not decode QR: {str(e)}")
 
 def convert_timestamp(timestamp: str) -> datetime:
@@ -40,9 +43,10 @@ def convert_timestamp(timestamp: str) -> datetime:
     """
     try:
         return datetime.fromisoformat(timestamp)
-    except Exception as e:
-        raise ValueError(f"Could not decode timestamp: {str(e)}")
+    except ValueError as e:
+        raise ValueError(f"Invalid timestamp format: {timestamp} | Error: {str(e)}")
 
+@log_function_calls
 def parse_return_event(event: dict) -> ReturnEvent:
     """Parses return event dict and returns a ReturnEvent object.
 
@@ -55,16 +59,22 @@ def parse_return_event(event: dict) -> ReturnEvent:
     Returns:
         ReturnEvent: Parsed return event
     """
+    required_keys = ["user_qr_data", "asset_qr_data", "location_id", "timestamp"]
+
     try:
-        user_id = decode_qr(event["user_qr_data"])
-        asset_id = decode_qr(event["asset_qr_data"])
-        location_id = event["location_id"]
-        timestamp = convert_timestamp(event["timestamp"])
+        missing_keys = [key for key in required_keys if key not in event]
+        if missing_keys:
+            raise KeyError(f"Missing required keys: {', '.join(missing_keys)}")
 
-        if not user_id or not asset_id or not location_id or not timestamp:
-            raise ValueError("Missing required event data")
+        return ReturnEvent(
+            user_id=decode_qr(event["user_qr_data"]),
+            asset_id=decode_qr(event["asset_qr_data"]),
+            location_id=event["location_id"],
+            timestamp=convert_timestamp(event["timestamp"]),
+        )
 
-        return ReturnEvent(user_id, asset_id, location_id, timestamp)
+    except KeyError as e:
+        raise KeyError(f"Missing event key(s): {str(e)}")
 
-    except Exception as e:
-        raise ValueError(f"Missing required event key: {str(e)}")
+    except ValueError as e:
+        raise ValueError(f"Failed to parse return event: {str(e)}")

@@ -4,6 +4,7 @@ import sys
 
 #print("Connecting to/creating challenge.db at:", os.getcwd())
 
+DB_NAME = os.getenv("TOPANGA_DB_PATH", "challenge.db")
 db_connection = None
 
 def initialize_db_connection():
@@ -32,7 +33,7 @@ def reset_db_connection():
         db_connection.close()  # Close old db connection
 
     # Reload the db environment variable and reconnect
-    new_db_name = "challenge.db"
+    new_db_name = os.getenv("TOPANGA_DB_PATH", "challenge.test.db")
     db_connection = sqlite3.connect(new_db_name)
     db_connection.execute("PRAGMA journal_mode=WAL;")
     db_connection.commit()
