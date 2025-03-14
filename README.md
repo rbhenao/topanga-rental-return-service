@@ -3,9 +3,9 @@ This service handles rental return events for **ReusePass**, supporting sustaina
 
 ## High-Level Overview
 - The service takes a json payload and returns a json payload
-- The input payload is parsed as a **ReturnEvent** in **`return_event_received.py`**
-- **ReturnEvent** is then processed in **`process_rental_return.py`**
-- Finally a **RentalReturnResponse** output payload is created and returned in **`return_event_response.py`**
+- The input payload is parsed as a **ReturnEvent** in **`handler.py`**
+- **ReturnEvent** is then processed in **`processor.py`**
+- Finally a **RentalReturnResponse** output payload is created and returned in **`response.py`**
 
 ## Engineering Choices
 - **Event-Driven:** The service processes return events asychronously in order to not block other microservices
@@ -77,29 +77,31 @@ source venv/bin/activate
 ```
 
 ### **2️. Install Dependencies**
-*two separate pip installs for now to avoid changing topanga package*
+*two separate pip installs for each package*
 ```sh
-pip install -r requirements.txt
+cd topanga_queries
+pip install -e .
 ```
 
 ```sh
-cd src
+cd rental_return_events
 pip install -e .
 ```
 
 ### **3. Initialize the Database**
 ```sh
-python topanga_queries/bootstrap/db.py
+cd rental_return_events
+python -m topanga_queries.bootstrap.db
 ```
 
 ---
 
 ## **Running the Rental Return Service**
 ### **Basic Usage**
-*(Note! Needs to run from src dir) TODO: update to run from anywhere*
+*Run from rental_return_events (package level not nested) dir!*
 ```sh
-cd src
-python rental_returns.py example_events/event_05.json
+cd rental_return_events
+python -m rental_return_events.main ../topanga_queries/example_events/event_01.json
 ```
 ### **Example Output**
 ```json
@@ -117,45 +119,40 @@ python rental_returns.py example_events/event_05.json
 
 ## **Example 2 (Verbose Mode)**
 ```sh
-python rental_returns.py example_events/event_05.json --verbose
+python -m rental_return_events.main ../topanga_queries/example_events/event_01.json --verbose
 ```
+
 #### **Output:**
 ```
-Received Return Event JSON:
-{
-    "timestamp": "2025-02-10T15:00:00+00:00",
-    "location_id": "topanga-location-01",
-    "user_qr_data": "dHBnX3UwMDAx",
-    "asset_qr_data": "dHBnX2EwMDAwMg=="
-}
-
-Return Event Parsed:
+2025-03-13 18:49:30 - rental_return_events - DEBUG - CALL: parse_return_event({'timestamp': '2025-02-10T11:00:00+00:00', 'location_id': 'topanga-location-01', 'user_qr_data': 'dHBnX3UwMDAx', 'asset_qr_data': 'dHBnX2EwMDAwMQ=='}, )
+2025-03-13 18:49:30 - rental_return_events - DEBUG - RETURN: parse_return_event -> 
+RETURN EVENT PARSED:
 +-----------+------------+---------------------+---------------------------+
 | User ID   | Asset ID   | Location ID         | Timestamp                 |
 +===========+============+=====================+===========================+
-| tpg_u0001 | tpg_a00002 | topanga-location-01 | 2025-02-10 15:00:00+00:00 |
+| tpg_u0001 | tpg_a00001 | topanga-location-01 | 2025-02-10 11:00:00+00:00 |
 +-----------+------------+---------------------+---------------------------+
-
-Eligible Rental Found:
-+--------------------------------------+-----------+------------+---------------------------+---------------------------+-------------+------------------------------+
-| Rental ID                            | User ID   | Asset ID   | Created At                | Expires At                | Status      | Eligible Asset Types         |
-+======================================+===========+============+===========================+===========================+=============+==============================+
-| 768770ac-a2df-4145-b722-80e57984fb11 | tpg_u0001 | tpg_a00002 | 2025-02-07T12:00:00+00:00 | 2025-02-14T12:00:00+00:00 | IN_PROGRESS | ['large-bowl', 'small-bowl'] |
-+--------------------------------------+-----------+------------+---------------------------+---------------------------+-------------+------------------------------+
-
-Updated Rental:
-+--------------------------------------+-----------+------------+---------------------------+---------------------------+-----------+------------------------------+
-| Rental ID                            | User ID   | Asset ID   | Created At                | Expires At                | Status    | Eligible Asset Types         |
-+======================================+===========+============+===========================+===========================+===========+==============================+
-| 768770ac-a2df-4145-b722-80e57984fb11 | tpg_u0001 | tpg_a00002 | 2025-02-07T12:00:00+00:00 | 2025-02-14T12:00:00+00:00 | COMPLETED | ['large-bowl', 'small-bowl'] |
-+--------------------------------------+-----------+------------+---------------------------+---------------------------+-----------+------------------------------+
-
-Final Rental Completion Response:
+2025-03-13 18:49:30 - rental_return_events - DEBUG - CALL: find_oldest_rental_from([Rental(id='eea6c617-9c44-45be-8b66-5c868a64ab7d', user_id='tpg_u0001', asset_id='tpg_a00001', created_at_location_id='topanga-location-01', created_at='2025-02-05T12:00:00+00:00', expires_at='2025-02-15T12:00:00+00:00', status='IN_PROGRESS', eligible_asset_types=['3-compartment', 'clamshell'], returned_at_location_id=None, returned_at=None)], )
+2025-03-13 18:49:30 - rental_return_events - DEBUG - RETURN: find_oldest_rental_from -> 
+ELIGIBLE RENTAL FOUND:
++--------------------------------------+-----------+------------+---------------------------+---------------------------+-------------+--------------------------------+
+| Rental ID                            | User ID   | Asset ID   | Created At                | Expires At                | Status      | Eligible Asset Types           |
++======================================+===========+============+===========================+===========================+=============+================================+
+| eea6c617-9c44-45be-8b66-5c868a64ab7d | tpg_u0001 | tpg_a00001 | 2025-02-05T12:00:00+00:00 | 2025-02-15T12:00:00+00:00 | IN_PROGRESS | ['3-compartment', 'clamshell'] |
++--------------------------------------+-----------+------------+---------------------------+---------------------------+-------------+--------------------------------+
+2025-03-13 18:49:30 - rental_return_events - DEBUG - CALL: finalize_rental_return(Rental(id='eea6c617-9c44-45be-8b66-5c868a64ab7d', user_id='tpg_u0001', asset_id='tpg_a00001', created_at_location_id='topanga-location-01', created_at='2025-02-05T12:00:00+00:00', expires_at='2025-02-15T12:00:00+00:00', status='IN_PROGRESS', eligible_asset_types=['3-compartment', 'clamshell'], returned_at_location_id=None, returned_at=None), ReturnEvent(user_id='tpg_u0001', asset_id='tpg_a00001', location_id='topanga-location-01', timestamp=datetime.datetime(2025, 2, 10, 11, 0, tzinfo=datetime.timezone.utc)), )
+2025-03-13 18:49:30 - rental_return_events - DEBUG - RETURN: finalize_rental_return -> 
+ELIGIBLE RENTAL FOUND:
++--------------------------------------+-----------+------------+---------------------------+---------------------------+-----------+--------------------------------+
+| Rental ID                            | User ID   | Asset ID   | Created At                | Expires At                | Status    | Eligible Asset Types           |
++======================================+===========+============+===========================+===========================+===========+================================+
+| eea6c617-9c44-45be-8b66-5c868a64ab7d | tpg_u0001 | tpg_a00001 | 2025-02-05T12:00:00+00:00 | 2025-02-15T12:00:00+00:00 | COMPLETED | ['3-compartment', 'clamshell'] |
++--------------------------------------+-----------+------------+---------------------------+---------------------------+-----------+--------------------------------+
 {
     "status": "SUCCESS",
     "message": "Rental successfully completed",
-    "rental_id": "768770ac-a2df-4145-b722-80e57984fb11",
-    "rental_returned_at": "2025-02-10T15:00:00+00:00",
+    "rental_id": "eea6c617-9c44-45be-8b66-5c868a64ab7d",
+    "rental_returned_at": "2025-02-10T11:00:00+00:00",
     "rental_status": "COMPLETED",
     "error": null
 }
@@ -165,8 +162,8 @@ Final Rental Completion Response:
 
 ## **Running Tests**
 ```sh
-cd tests
-pytest -v
+cd rental_return_events
+pytest tests/ -v
 ```
 ---
 
