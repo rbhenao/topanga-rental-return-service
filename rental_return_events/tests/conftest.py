@@ -1,10 +1,13 @@
-from env_setup import DB_TEST_PATH, EVENTS_DIR
+from env_setup import PROJECT_ROOT, DB_TEST_PATH, EVENTS_DIR
 
 import pytest
 import os
 import sys
 import json
 from pathlib import Path
+
+# Add package to sys path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Define paths and set up environment before importing topanga and rental_return_events packages
 DB_TEST_PATH = os.path.join(os.path.dirname(__file__), "challenge.test.db")  # Inside `tests/`

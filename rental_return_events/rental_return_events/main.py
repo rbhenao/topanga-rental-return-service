@@ -7,8 +7,8 @@ import sqlite3
 from rental_return_events.logger import configure_logging
 from rental_return_events.processor import process_rental_return
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = PROJECT_ROOT / "challenge.db"
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+DB_PATH = PACKAGE_ROOT / "challenge.db"
 
 def check_database():
     """Ensure the database exists and contains the required tables."""
