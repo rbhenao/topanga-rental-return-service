@@ -1,3 +1,4 @@
+"""Logging utilities for the rental return events package."""
 import logging
 import sys
 import functools
@@ -5,6 +6,7 @@ import json
 from tabulate import tabulate
 
 logger = logging.getLogger("rental_return_events")
+
 
 def configure_logging(verbose=False):
     """Configures logging level based on verbose mode."""
@@ -20,10 +22,11 @@ def configure_logging(verbose=False):
     )
 
     console_handler.setFormatter(formatter)
-    
+
     # Clear existing handlers before adding new ones to prevent duplicates
     if not logger.handlers:
         logger.addHandler(console_handler)
+
 
 def infer_object_type(obj):
     """Infers the type of an object based on its attributes."""
@@ -39,9 +42,11 @@ def infer_object_type(obj):
 
     if {"user_id", "asset_id", "location_id", "timestamp"} <= keys:
         return "ReturnEvent"
-    if {"id", "user_id", "asset_id", "created_at", "expires_at", "status", "eligible_asset_types"} <= keys:
+    if {"id", "user_id", "asset_id", "created_at",
+            "expires_at", "status", "eligible_asset_types"} <= keys:
         return "Rental"
     return None
+
 
 def format_output(value):
     """Formats logging output based on data type."""
@@ -52,22 +57,53 @@ def format_output(value):
 
     if obj_type == "ReturnEvent":
         headers = ["User ID", "Asset ID", "Location ID", "Timestamp"]
-        data = [[value.user_id, value.asset_id, value.location_id, value.timestamp]]
-        return "\nRETURN EVENT PARSED:\n" + tabulate(data, headers=headers, tablefmt="grid")
+        data = [[value.user_id, value.asset_id,
+                 value.location_id, value.timestamp]]
+        return "\nRETURN EVENT PARSED:\n" + \
+            tabulate(data, headers=headers, tablefmt="grid")
 
     if obj_type == "Rental":
-        headers = ["Rental ID", "User ID", "Asset ID", "Created At", "Expires At", "Status", "Eligible Asset Types"]
-        data = [[value.id, value.user_id, value.asset_id, value.created_at, value.expires_at, value.status, value.eligible_asset_types]]
-        return "\nELIGIBLE RENTAL FOUND:\n" + tabulate(data, headers=headers, tablefmt="grid")
+        headers = [
+            "Rental ID",
+            "User ID",
+            "Asset ID",
+            "Created At",
+            "Expires At",
+            "Status",
+            "Eligible Asset Types"]
+        data = [[value.id,
+                 value.user_id,
+                 value.asset_id,
+                 value.created_at,
+                 value.expires_at,
+                 value.status,
+                 value.eligible_asset_types]]
+        return "\nELIGIBLE RENTAL FOUND:\n" + \
+            tabulate(data, headers=headers, tablefmt="grid")
 
     if isinstance(value, list) and len(value) > 0:
         obj_type = infer_object_type(value[0])  # Check the first item
         if obj_type == "Rental":
-            headers = ["Rental ID", "User ID", "Asset ID", "Created At", "Expires At", "Status", "Eligible Asset Types"]
-            data = [[r.id, r.user_id, r.asset_id, r.created_at, r.expires_at, r.status, r.eligible_asset_types] for r in value]
-            return "\nELIGIBLE RENTALS:\n" + tabulate(data, headers=headers, tablefmt="grid")
+            headers = [
+                "Rental ID",
+                "User ID",
+                "Asset ID",
+                "Created At",
+                "Expires At",
+                "Status",
+                "Eligible Asset Types"]
+            data = [[r.id,
+                     r.user_id,
+                     r.asset_id,
+                     r.created_at,
+                     r.expires_at,
+                     r.status,
+                     r.eligible_asset_types] for r in value]
+            return "\nELIGIBLE RENTALS:\n" + \
+                tabulate(data, headers=headers, tablefmt="grid")
 
     return value
+
 
 def log_function_calls(func):
     """Decorator to automatically log function calls and results."""
@@ -76,13 +112,13 @@ def log_function_calls(func):
         if logger.isEnabledFor(logging.DEBUG):
             arg_str = ", ".join([repr(a) for a in args])
             kwarg_str = ", ".join([f"{k}={v!r}" for k, v in kwargs.items()])
-            logger.debug(f"CALL: {func.__name__}({arg_str}, {kwarg_str})")
+            logger.debug("CALL: %s(%s, %s)", func.__name__, arg_str, kwarg_str)
 
         result = func(*args, **kwargs)
 
         if logger.isEnabledFor(logging.DEBUG):
             formatted_result = format_output(result)
-            logger.debug(f"RETURN: {func.__name__} -> {formatted_result}")
+            logger.debug("RETURN: %s -> %s", func.__name__, formatted_result)
 
         return result
 
